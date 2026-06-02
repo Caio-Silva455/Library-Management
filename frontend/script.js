@@ -8,7 +8,8 @@ const ROTA_MAP = {
   "Cidade": "cidades",
   "Editora": "editoras",
   "Historico": "historico",
-  "Area_Conhecimento": "areas-conhecimento"
+  "Area_Conhecimento": "areas-conhecimento",
+  "state": "estados"
 };
 
 async function executarBuscaGeral() {
@@ -73,6 +74,7 @@ async function executarBuscaGeral() {
       "Aluno":              () => gerarTabelaAluno(dados),
       "Livro":              () => gerarTabelaLivro(dados),
       "Historico":          () => gerarTabelaHistorico(dados),
+      "state":              () => gerarTabelaPadrao(dados, "Nome do Estado")
     };
 
     const estruturaTabela = renderMap[tabelaSelecionada]

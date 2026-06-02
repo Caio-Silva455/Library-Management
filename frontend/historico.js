@@ -4,7 +4,7 @@ async function carregarHistorico() {
   const container = document.getElementById("tabela-historico-container");
   const inputBusca = document.getElementById("input-busca-historico");
 
-  if (!container) return; 
+  if (!container) return;
 
   const termo = inputBusca ? inputBusca.value.trim() : "";
 
@@ -23,7 +23,6 @@ async function carregarHistorico() {
     if (!resposta.ok) throw new Error("Erro na requisição");
     const dados = await resposta.json();
 
-    
     if (!dados || dados.length === 0) {
       container.innerHTML = `
                 <div class="flex flex-col items-center justify-center h-[250px] text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200 p-6">
@@ -47,7 +46,6 @@ async function carregarHistorico() {
       return;
     }
 
-    
     container.innerHTML = `
             <table class="w-full text-left border-collapse bg-white text-sm">
                 <thead>
@@ -64,7 +62,6 @@ async function carregarHistorico() {
                 <tbody class="divide-y divide-slate-100 text-slate-600">
                     ${dados
                       .map((item) => {
-                        
                         const nomeAluno =
                           item.nome_aluno ??
                           item.NOME_ALUNO ??
@@ -151,10 +148,8 @@ function limparFiltro() {
   carregarHistorico();
 }
 
-
 document.addEventListener("DOMContentLoaded", () => {
   carregarHistorico();
-
 
   const inputBusca = document.getElementById("input-busca-historico");
   if (inputBusca) {
