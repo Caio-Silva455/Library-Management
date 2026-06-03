@@ -31,20 +31,47 @@ async function execSP(spName, paramsFn) {
 
 // ─── GETs ─────────────────────────────────────────────────────────────────────
 
+// app.get('/autores', async (req, res) => {
+//     try {
+//         const pool = await getPool();
+//         const termo = req.query.busca || req.query.nome;
+//         let querySQL = 'SELECT id, nome FROMselect * from Area_Conhecimento ac  Autor';
+//         const request = pool.request();
+//         if (termo) {
+//             querySQL += ' WHERE nome LIKE @filtro';
+//             request.input('filtro', sql.VarChar, `%${termo}%`);
+//         }
+//         querySQL += ' ORDER BY id DESC';
+//         const result = await request.query(querySQL);
+//         res.json(result.recordset);
+//     } catch (err) {
+//         res.status(500).json({ erro: err.message });
+//     }
+// });
+
 app.get('/autores', async (req, res) => {
     try {
         const pool = await getPool();
+
         const termo = req.query.busca || req.query.nome;
-        let querySQL = 'SELECT id, nome FROMselect * from Area_Conhecimento ac  Autor';
+
+        let querySQL = 'SELECT id, nome FROM Autor';
+
         const request = pool.request();
+
         if (termo) {
             querySQL += ' WHERE nome LIKE @filtro';
             request.input('filtro', sql.VarChar, `%${termo}%`);
         }
+
         querySQL += ' ORDER BY id DESC';
+
         const result = await request.query(querySQL);
+
         res.json(result.recordset);
+
     } catch (err) {
+        console.error(err);
         res.status(500).json({ erro: err.message });
     }
 });
