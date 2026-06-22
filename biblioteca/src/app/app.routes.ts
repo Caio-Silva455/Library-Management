@@ -9,37 +9,35 @@ export const routes: Routes = [
   {
     path: 'dashboard',
     loadComponent: () =>
-      import('./dashboard/dashboard.component').then(m => m.DashboardComponent),
+      import('./dashboard/dashboard.component').then((m) => m.DashboardComponent),
   },
   {
     path: 'alunos',
-    loadComponent: () =>
-      import('./aluno/aluno.component').then(m => m.AlunoComponent),
+    loadComponent: () => import('./aluno/aluno.component').then((m) => m.AlunoComponent),
   },
   {
     path: 'livros',
-    loadComponent: () =>
-      import('./livro/livro.component').then(m => m.LivroComponent),
-  },
-  {
-    path: 'exemplares',
-    loadComponent: () =>
-      import('./exemplar/exemplar.component').then(m => m.EmprestimoComponent),
+    loadComponent: () => import('./livro/livro.component').then((m) => m.LivroComponent),
   },
   {
     path: 'editoras',
-    loadComponent: () =>
-      import('./editora/editora.component').then(m => m.EditoraComponent),
+    loadComponent: () => import('./editora/editora.component').then((m) => m.EditoraComponent),
+  },
+  {
+    path:'exemplar',
+    loadComponent: () => import('./exemplar/exemplar.component').then((m) => m.ExemplarComponent),
   },
   {
     path: 'area-conhecimento',
     loadComponent: () =>
-      import('./area-conhecimento/area-conhecimento.component').then(m => m.AreaConhecimentoComponent),
+      import('./area-conhecimento/area-conhecimento.component').then(
+        (m) => m.AreaConhecimentoComponent,
+      ),
   },
   {
     path: 'historico',
     loadComponent: () =>
-      import('./historico/historico.component').then(m => m.HistoricoComponent),
+      import('./historico/historico.component').then((m) => m.HistoricoComponent),
   },
   {
     path: '**',

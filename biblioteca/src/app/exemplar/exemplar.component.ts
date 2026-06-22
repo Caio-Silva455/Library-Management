@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
@@ -32,13 +32,13 @@ type StatusEmprestimo = 'devolvido' | 'atraso' | 'vencendo' | 'ativo';
 // ─── Component ────────────────────────────────────────────────────────────────
 
 @Component({
-  selector: 'app-emprestimo',
+  selector: 'app-exemplar',
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './exemplar.component.html',
   styleUrl: './exemplar.component.css',
 })
-export class EmprestimoComponent implements OnInit {
+export class ExemplarComponent implements OnInit {
 
   private readonly API = 'http://localhost:4000';
 
@@ -67,27 +67,22 @@ export class EmprestimoComponent implements OnInit {
   totalAtraso: number = 0;
   totalVencendo: number = 0;
 
-  // ─── Loading ──────────────────────────────────────────────────────────────
+  // ─── Loading / Erro ───────────────────────────────────────────────────────
 
   loadingTabela: boolean = false;
   loadingRegistrar: boolean = false;
+  loadingDevolver: number | null = null;
   erroTabela: string = '';
 
   constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
-    const hoje = new Date().toISOString().split('T')[0];
-    this.dataEmprestimo = hoje;
-
-    const dev = new Date();
-    dev.setDate(dev.getDate() + 15);
-    this.dataDevolucao = dev.toISOString().split('T')[0];
-
+    this.resetarDatas();
     this.carregarAlunos();
     this.carregarEmprestimos();
   }
 
-  // ─── Carregar alunos ─────────────────────────────────────────────────────
+  // ─── Carregar alunos ──────────────────────────────────────────────────────
 
   async carregarAlunos(): Promise<void> {
     try {
@@ -103,8 +98,7 @@ export class EmprestimoComponent implements OnInit {
 
   async registrarEmprestimo(): Promise<void> {
     if (!this.idAlunoSelecionado || !this.idExemplar.trim() || !this.dataEmprestimo) {
-      this.msg = 'Preencha aluno, exemplar e data.';
-      this.msgTipo = 'erro';
+      this.setMsg('Preencha aluno, exemplar e data.', 'erro');
       return;
     }
 
@@ -115,21 +109,19 @@ export class EmprestimoComponent implements OnInit {
     try {
       await firstValueFrom(
         this.http.post<ApiResponse>(`${this.API}/exemplar-emprestado`, {
-          idAluno: parseInt(this.idAlunoSelecionado),
-          idExemplar: parseInt(this.idExemplar),
+          idAluno: Number(this.idAlunoSelecionado),
+          idExemplar: Number(this.idExemplar),
           dataEmprestimo: this.dataEmprestimo,
           dataDevolucao: this.dataDevolucao || null,
         })
       );
 
-      this.msg = 'Empréstimo registrado com sucesso!';
-      this.msgTipo = 'ok';
+      this.setMsg('Empréstimo registrado com sucesso!', 'ok');
       this.limparFormulario();
       await this.carregarEmprestimos();
-    } catch (err: unknown) {
-      const httpErr = err as { error?: { erro?: string } };
-      this.msg = httpErr?.error?.erro ?? 'Erro ao conectar com o servidor.';
-      this.msgTipo = 'erro';
+    } catch (err) {
+      const httpErr = err as HttpErrorResponse;
+      this.setMsg(httpErr?.error?.erro ?? 'Erro ao conectar com o servidor.', 'erro');
     } finally {
       this.loadingRegistrar = false;
     }
@@ -147,23 +139,45 @@ export class EmprestimoComponent implements OnInit {
       );
       this.atualizarCards(this.todosEmprestimos);
       this.filtrarTabela();
-    } catch (err: unknown) {
-      const e = err instanceof Error ? err.message : 'Erro desconhecido';
-      this.erroTabela = `Erro ao carregar: ${e}`;
+    } catch {
+      this.erroTabela = 'Erro ao conectar ou carregar empréstimos.';
     } finally {
       this.loadingTabela = false;
     }
   }
 
-  // ─── Cards de resumo ─────────────────────────────────────────────────────
+  // ─── Devolver exemplar ────────────────────────────────────────────────────
+
+  async devolverExemplar(id: number): Promise<void> {
+    if (!confirm('Confirmar devolução deste exemplar?')) return;
+
+    this.loadingDevolver = id;
+
+    try {
+      await firstValueFrom(
+        this.http.put<ApiResponse>(`${this.API}/exemplar-emprestado/${id}/devolver`, {
+          dataDevolucao: new Date().toISOString().split('T')[0],
+        })
+      );
+      await this.carregarEmprestimos();
+    } catch (err) {
+      const httpErr = err as HttpErrorResponse;
+      alert(`Erro: ${httpErr?.error?.erro ?? 'Erro ao conectar com o servidor.'}`);
+    } finally {
+      this.loadingDevolver = null;
+    }
+  }
+
+  // ─── Cards de resumo ──────────────────────────────────────────────────────
 
   atualizarCards(dados: Emprestimo[]): void {
-    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-    const em3 = new Date(hoje); em3.setDate(em3.getDate() + 3);
+    const hoje = this.hoje();
+    const em3 = new Date(hoje);
+    em3.setDate(em3.getDate() + 3);
 
     const ativos = dados.filter(d => !d.dataDevolucao);
-    this.totalAtivos = ativos.length;
-    this.totalAtraso = ativos.filter(d =>
+    this.totalAtivos   = ativos.length;
+    this.totalAtraso   = ativos.filter(d =>
       d.dataDevolucaoPrevista && new Date(d.dataDevolucaoPrevista) < hoje
     ).length;
     this.totalVencendo = ativos.filter(d => {
@@ -173,25 +187,28 @@ export class EmprestimoComponent implements OnInit {
     }).length;
   }
 
-  // ─── Status badge ─────────────────────────────────────────────────────────
+  // ─── Status ───────────────────────────────────────────────────────────────
 
   getStatus(emp: Emprestimo): StatusEmprestimo {
     if (emp.dataDevolucao) return 'devolvido';
-    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-    const em3 = new Date(hoje); em3.setDate(em3.getDate() + 3);
     if (!emp.dataDevolucaoPrevista) return 'ativo';
-    const dev = new Date(emp.dataDevolucaoPrevista);
+
+    const hoje = this.hoje();
+    const em3  = new Date(hoje);
+    em3.setDate(em3.getDate() + 3);
+    const dev  = new Date(emp.dataDevolucaoPrevista);
+
     if (dev < hoje) return 'atraso';
-    if (dev <= em3) return 'vencendo';
+    if (dev <= em3)  return 'vencendo';
     return 'ativo';
   }
 
   getStatusLabel(emp: Emprestimo): string {
     const map: Record<StatusEmprestimo, string> = {
       devolvido: 'Devolvido',
-      atraso: 'Em atraso',
-      vencendo: 'Vence em breve',
-      ativo: 'Ativo',
+      atraso:    'Em atraso',
+      vencendo:  'Vence em breve',
+      ativo:     'Ativo',
     };
     return map[this.getStatus(emp)];
   }
@@ -199,73 +216,63 @@ export class EmprestimoComponent implements OnInit {
   getStatusClasse(emp: Emprestimo): string {
     const map: Record<StatusEmprestimo, string> = {
       devolvido: 'bg-slate-100 text-slate-500',
-      atraso: 'bg-red-100 text-red-600',
-      vencendo: 'bg-yellow-100 text-yellow-600',
-      ativo: 'bg-emerald-100 text-emerald-600',
+      atraso:    'bg-red-100 text-red-600',
+      vencendo:  'bg-yellow-100 text-yellow-600',
+      ativo:     'bg-emerald-100 text-emerald-600',
     };
     return `px-2.5 py-1 rounded-full text-xs font-semibold ${map[this.getStatus(emp)]}`;
   }
 
-  // ─── Filtro de busca ─────────────────────────────────────────────────────
+  // ─── Filtro ───────────────────────────────────────────────────────────────
 
   filtrarTabela(): void {
-    if (!this.termoBusca.trim()) {
-      this.emprestimosFiltrados = [...this.todosEmprestimos];
-      return;
-    }
-    const termo = this.termoBusca.toLowerCase();
-    this.emprestimosFiltrados = this.todosEmprestimos.filter(d =>
-      (d.nomeAluno ?? '').toLowerCase().includes(termo)
-    );
+    const termo = this.termoBusca.trim().toLowerCase();
+    this.emprestimosFiltrados = termo
+      ? this.todosEmprestimos.filter(d =>
+          (d.nomeAluno ?? '').toLowerCase().includes(termo)
+        )
+      : [...this.todosEmprestimos];
   }
 
-  // ─── Devolver exemplar ────────────────────────────────────────────────────
-
-  async devolverExemplar(id: number): Promise<void> {
-    if (!confirm('Confirmar devolução deste exemplar?')) return;
-
-    try {
-      await firstValueFrom(
-        this.http.put<ApiResponse>(`${this.API}/exemplar-emprestado/${id}/devolver`, {
-          dataDevolucao: new Date().toISOString().split('T')[0],
-        })
-      );
-      await this.carregarEmprestimos();
-    } catch (err: unknown) {
-      const httpErr = err as { error?: { erro?: string } };
-      alert(`Erro: ${httpErr?.error?.erro ?? 'Erro ao conectar com o servidor.'}`);
-    }
-  }
-
-  // ─── Limpar formulário ────────────────────────────────────────────────────
-
-  limparFormulario(): void {
-    this.idAlunoSelecionado = '';
-    this.idExemplar = '';
-    this.msg = '';
-    this.msgTipo = '';
-
-    const hoje = new Date().toISOString().split('T')[0];
-    this.dataEmprestimo = hoje;
-
-    const dev = new Date();
-    dev.setDate(dev.getDate() + 15);
-    this.dataDevolucao = dev.toISOString().split('T')[0];
-  }
-
-  // ─── Helper data ──────────────────────────────────────────────────────────
+  // ─── Helpers ──────────────────────────────────────────────────────────────
 
   formatarData(data?: string): string {
     if (!data) return '—';
     return new Date(data).toLocaleDateString('pt-BR');
   }
 
-  // ─── Getter classes de msg ────────────────────────────────────────────────
-
   get msgClasse(): string {
     if (!this.msgTipo) return '';
     return this.msgTipo === 'ok'
       ? 'bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-2 rounded-lg text-xs'
       : 'text-red-500 text-xs';
+  }
+
+  // ─── Privados ─────────────────────────────────────────────────────────────
+
+  private hoje(): Date {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  private setMsg(texto: string, tipo: 'ok' | 'erro'): void {
+    this.msg     = texto;
+    this.msgTipo = tipo;
+  }
+
+  private resetarDatas(): void {
+    this.dataEmprestimo = new Date().toISOString().split('T')[0];
+    const dev = new Date();
+    dev.setDate(dev.getDate() + 15);
+    this.dataDevolucao = dev.toISOString().split('T')[0];
+  }
+
+  limparFormulario(): void {
+    this.idAlunoSelecionado = '';
+    this.idExemplar         = '';
+    this.msg                = '';
+    this.msgTipo            = '';
+    this.resetarDatas();
   }
 }

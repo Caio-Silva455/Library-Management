@@ -18,7 +18,7 @@ interface ApiResponse {
 })
 export class EditoraComponent {
 
-  private readonly API = 'http://localhost:4000';
+  private readonly API = 'http://localhost:4200';
 
   nomeEditora: string = '';
   loading: boolean = false;

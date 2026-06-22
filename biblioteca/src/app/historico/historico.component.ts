@@ -62,7 +62,7 @@ interface HistoricoView {
 })
 export class HistoricoComponent implements OnInit {
 
-  private readonly API = 'http://localhost:4000';
+  private readonly API = 'http://localhost:4200';
 
   termoBusca: string = '';
   loading: boolean = false;

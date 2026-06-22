@@ -18,7 +18,7 @@ interface ApiResponse {
 })
 export class AreaConhecimentoComponent {
 
-  private readonly API = 'http://localhost:4000';
+  private readonly API = 'http://localhost:4200';
 
   nomeArea: string = '';
   loading: boolean = false;
@@ -39,7 +39,7 @@ export class AreaConhecimentoComponent {
     const nome = this.nomeArea.trim();
 
     if (!nome) {
-      this.msg = '❌ Digite uma aréa de conhecimento.';
+      this.msg = ' Digite uma aréa de conhecimento.';
       this.msgTipo = 'erro';
       return;
     }
@@ -53,13 +53,13 @@ export class AreaConhecimentoComponent {
         this.http.post<ApiResponse>(`${this.API}/areas-conhecimento`, { nome })
       );
 
-      this.msg = `✅ ${data.mensagem}`;
+      this.msg = ` ${data.mensagem}`;
       this.msgTipo = 'ok';
       this.nomeArea = '';
     } catch (err: unknown) {
       const httpErr = err as { error?: { erro?: string } };
       const detalhe = httpErr?.error?.erro ?? 'Erro ao conectar com o servidor.';
-      this.msg = `❌ ${detalhe}`;
+      this.msg = ` ${detalhe}`;
       this.msgTipo = 'erro';
     } finally {
       this.loading = false;

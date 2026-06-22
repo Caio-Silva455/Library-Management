@@ -1,4 +1,4 @@
-   import { Component } from '@angular/core';
+import { Component, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -6,25 +6,23 @@ import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-livro',
-  standalone:true,
+  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './livro.component.html',
   styleUrl: './livro.component.css',
 })
 export class LivroComponent {
+  // Ajustado para a porta 4000 do seu backend local
   private readonly API = 'http://localhost:4000';
-
 
   idEditora: number | null = null;
   idLivro: number | null = null;
   idAutor: number | null = null;
   idArea: number | null = null;
 
- 
   stepAtivo = 1;
   stepsCompletos: number[] = [];
 
- 
   nomeEditora = '';
   titulo = '';
   isbn = '';
@@ -47,7 +45,6 @@ export class LivroComponent {
   loadingAutor = false;
   loadingArea = false;
 
-
   tagEditoraVisivel = false;
   tagLivroVisivel = false;
   tagAutorVisivel = false;
@@ -55,7 +52,8 @@ export class LivroComponent {
 
   cadastroConcluido = false;
 
-  constructor(private http: HttpClient) {}
+  // Injetando ChangeDetectorRef para forçar a renderização imediata pós-requisição
+  constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
   isStepCompleto(n: number): boolean {
     return this.stepsCompletos.includes(n);
@@ -83,25 +81,37 @@ export class LivroComponent {
       return;
     }
     this.loadingEditora = true;
+    this.msgEditora = '';
+    this.cdr.detectChanges();
+
     try {
-      await firstValueFrom(
-        this.http.post(`${this.API}/editoras`, { nome })
+      const resPost = await firstValueFrom(
+        this.http.post<any>(`${this.API}/editoras`, { nome })
       );
-      const lista = await firstValueFrom(
-        this.http.get<any[]>(`${this.API}/editoras?busca=${encodeURIComponent(nome)}`)
-      );
-      this.idEditora = lista?.[0]?.id ?? null;
+      
+      // Tenta capturar ID direto do POST, senão faz Fallback com GET
+      if (resPost && resPost.id) {
+        this.idEditora = resPost.id;
+      } else {
+        const lista = await firstValueFrom(
+          this.http.get<any[]>(`${this.API}/editoras?busca=${encodeURIComponent(nome)}`)
+        );
+        this.idEditora = lista?.[0]?.id ?? null;
+      }
+
       if (!this.idEditora) throw new Error('Editora não encontrada.');
+      
       this.msgEditora = `Editora "${nome}" confirmada! ID: ${this.idEditora}`;
       this.tipoMsgEditora = 'ok';
       this.tagEditoraVisivel = true;
       this.completeStep(1);
       this.unlockStep(2);
     } catch (err: any) {
-      this.msgEditora = `Erro: ${err.message}`;
+      this.msgEditora = `Erro: ${err.message || 'Falha na conexão'}`;
       this.tipoMsgEditora = 'erro';
     } finally {
       this.loadingEditora = false;
+      this.cdr.detectChanges();
     }
   }
 
@@ -113,9 +123,12 @@ export class LivroComponent {
       return;
     }
     this.loadingLivro = true;
+    this.msgLivro = '';
+    this.cdr.detectChanges();
+
     try {
-      await firstValueFrom(
-        this.http.post(`${this.API}/livros`, {
+      const resPost = await firstValueFrom(
+        this.http.post<any>(`${this.API}/livros`, {
           titulo,
           isbn: this.isbn || null,
           idioma: this.idioma || null,
@@ -123,21 +136,29 @@ export class LivroComponent {
           idEditora: this.idEditora,
         })
       );
-      const lista = await firstValueFrom(
-        this.http.get<any[]>(`${this.API}/livros?busca=${encodeURIComponent(titulo)}`)
-      );
-      this.idLivro = lista?.[0]?.id ?? null;
+
+      if (resPost && resPost.id) {
+        this.idLivro = resPost.id;
+      } else {
+        const lista = await firstValueFrom(
+          this.http.get<any[]>(`${this.API}/livros?busca=${encodeURIComponent(titulo)}`)
+        );
+        this.idLivro = lista?.[0]?.id ?? null;
+      }
+
       if (!this.idLivro) throw new Error('Livro não encontrado após salvar.');
+      
       this.msgLivro = `Livro "${titulo}" salvo! ID: ${this.idLivro}`;
       this.tipoMsgLivro = 'ok';
       this.tagLivroVisivel = true;
       this.completeStep(2);
       this.unlockStep(3);
     } catch (err: any) {
-      this.msgLivro = `Erro: ${err.message}`;
+      this.msgLivro = `Erro: ${err.message || 'Falha na conexão'}`;
       this.tipoMsgLivro = 'erro';
     } finally {
       this.loadingLivro = false;
+      this.cdr.detectChanges();
     }
   }
 
@@ -149,14 +170,23 @@ export class LivroComponent {
       return;
     }
     this.loadingAutor = true;
+    this.msgAutor = '';
+    this.cdr.detectChanges();
+
     try {
-      await firstValueFrom(
-        this.http.post(`${this.API}/autores`, { nome })
+      const resPost = await firstValueFrom(
+        this.http.post<any>(`${this.API}/autores`, { nome })
       );
-      const lista = await firstValueFrom(
-        this.http.get<any[]>(`${this.API}/autores?busca=${encodeURIComponent(nome)}`)
-      );
-      this.idAutor = lista?.[0]?.id ?? null;
+
+      if (resPost && resPost.id) {
+        this.idAutor = resPost.id;
+      } else {
+        const lista = await firstValueFrom(
+          this.http.get<any[]>(`${this.API}/autores?busca=${encodeURIComponent(nome)}`)
+        );
+        this.idAutor = lista?.[0]?.id ?? null;
+      }
+
       if (!this.idAutor) throw new Error('Autor não encontrado.');
 
       await firstValueFrom(
@@ -171,10 +201,11 @@ export class LivroComponent {
       this.completeStep(3);
       this.unlockStep(4);
     } catch (err: any) {
-      this.msgAutor = `Erro: ${err.message}`;
+      this.msgAutor = `Erro: ${err.message || 'Falha na conexão'}`;
       this.tipoMsgAutor = 'erro';
     } finally {
       this.loadingAutor = false;
+      this.cdr.detectChanges();
     }
   }
 
@@ -186,14 +217,23 @@ export class LivroComponent {
       return;
     }
     this.loadingArea = true;
+    this.msgArea = '';
+    this.cdr.detectChanges();
+
     try {
-      await firstValueFrom(
-        this.http.post(`${this.API}/areas-conhecimento`, { nome })
+      const resPost = await firstValueFrom(
+        this.http.post<any>(`${this.API}/areas-conhecimento`, { nome })
       );
-      const lista = await firstValueFrom(
-        this.http.get<any[]>(`${this.API}/areas-conhecimento?busca=${encodeURIComponent(nome)}`)
-      );
-      this.idArea = lista?.[0]?.id ?? null;
+
+      if (resPost && resPost.id) {
+        this.idArea = resPost.id;
+      } else {
+        const lista = await firstValueFrom(
+          this.http.get<any[]>(`${this.API}/areas-conhecimento?busca=${encodeURIComponent(nome)}`)
+        );
+        this.idArea = lista?.[0]?.id ?? null;
+      }
+
       if (!this.idArea) throw new Error('Área não encontrada.');
 
       await firstValueFrom(
@@ -208,10 +248,11 @@ export class LivroComponent {
       this.completeStep(4);
       this.cadastroConcluido = true;
     } catch (err: any) {
-      this.msgArea = `Erro: ${err.message}`;
+      this.msgArea = `Erro: ${err.message || 'Falha na conexão'}`;
       this.tipoMsgArea = 'erro';
     } finally {
       this.loadingArea = false;
+      this.cdr.detectChanges();
     }
   }
 
@@ -243,5 +284,7 @@ export class LivroComponent {
     this.tagAreaVisivel = false;
 
     this.cadastroConcluido = false;
+    this.cdr.detectChanges();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 }
